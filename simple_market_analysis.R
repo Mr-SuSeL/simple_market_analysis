@@ -33,6 +33,26 @@ par(mfrow = c(2, 1))
 Acf(sp500.close, main = "Funkcja ACF")
 Pacf(sp500.close, main = "Funkcja PACF")
 # ACF wskazuje tutaj na silny trend
+# Brak oscylacji w PACF sugeruje brak sezonowości
+# Poniżej porównanie z białym szumem
+bialy.szum <- as.ts(rnorm(200))
+par(mfrow = c(2, 2))
+Acf(sp500.close, main = "Funkcja ACF SP500")
+Pacf(sp500.close, main = "Funkcja PACF Sp500")
+Acf(bialy.szum, main = "Funkcja ACF WN")
+Pacf(bialy.szum, main = "Funkcja PACF WN")
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
