@@ -42,6 +42,45 @@ Pacf(sp500.close, main = "Funkcja PACF Sp500")
 Acf(bialy.szum, main = "Funkcja ACF WN")
 Pacf(bialy.szum, main = "Funkcja PACF WN")
 
+tsdisplay(sp500.close)
+
+##  Korekta kalendarzowa
+#srednia.liczba.dni <- 365.25 / 12
+#liczba.dni.w.miesiacu <- monthdays(sp500.close)
+
+
+## Box-Cox & differencing
+# Transformacje boxa-Coxa zastosujemy celem ustabilizowania wariancji szeregu
+# Różnicowanie będzie miało na celu usunięcie trendu z danych
+sp500.sqrt <- BoxCox(sp500.close, lambda = 0.5)
+sp500.log <- BoxCox(sp500.close, lambda = 0) #ln - z definicji
+par(mfrow = c(3, 1))
+plot(sp500.close, main = "dane oryginalne")
+grid()
+plot(sp500.sqrt, main = "BoxCox dla lambda 0.5 - potęgowa")
+grid()
+plot(sp500.log, main = "BoxCox dla lambda 0 - logarytmiczna")
+grid()
+# Cieżko powiedzieć - dla niższych wartości lepsza logarytmiczna, ale dla wyższych potęgowa
+# Logarytmując dane możemy ustabilizować wariancję.
+# Stabilizacja wariancji jest konieczna dla zastosowania modeli stacjonarnych.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
