@@ -54,16 +54,54 @@ tsdisplay(sp500.close)
 # Różnicowanie będzie miało na celu usunięcie trendu z danych
 sp500.sqrt <- BoxCox(sp500.close, lambda = 0.5)
 sp500.log <- BoxCox(sp500.close, lambda = 0) #ln - z definicji
-par(mfrow = c(3, 1))
+autolambda <- BoxCox.lambda(sp500.close) # 0.317 - auto lambda
+sp500.autolambda <- BoxCox(sp500.close, lambda = autolambda)
+
+par(mfrow = c(2, 2))
 plot(sp500.close, main = "dane oryginalne")
 grid()
 plot(sp500.sqrt, main = "BoxCox dla lambda 0.5 - potęgowa")
 grid()
 plot(sp500.log, main = "BoxCox dla lambda 0 - logarytmiczna")
 grid()
+plot(sp500.autolambda, main = "BoxCox dla lambda automatyczne")
+grid()
 # Cieżko powiedzieć - dla niższych wartości lepsza logarytmiczna, ale dla wyższych potęgowa
+# Lambda automatyczna 0.31 jest bardzo dobra
 # Logarytmując dane możemy ustabilizować wariancję.
 # Stabilizacja wariancji jest konieczna dla zastosowania modeli stacjonarnych.
+# Arima(..., lambda)
+# Ogólnie: tranformacja BoxaCoxa istotnie wpływa na konstrukcję przedziałów predykcyjnych,
+# a nie na konstrukcje prognoz punktowych
+
+## Differencing - różnicowanie
+# cel: przekształcenie szeregu czasowego do postaci stacjonarnej
+sp500.diff <- diff(sp500.close)
+#par(mfrow = c(2, 1))
+tsdisplay(sp500.close)
+tsdisplay(sp500.diff)
+# Spróbujmy róznicowania wielokrotnego celem eliminacji silnego trendu:
+sp500.diff2 <- diff(sp500.close, differences = 2)
+tsdisplay(sp500.diff2) 
+# przy wielokrotnej robi się dziwnie patrząc na acf i pacf
+sp500.diff3 <- diff(sp500.close, differences = 3)
+tsdisplay(sp500.diff3)
+sp500.diff5 <- diff(sp500.close, differences = 5)
+tsdisplay(sp500.diff5)
+
+ 
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
