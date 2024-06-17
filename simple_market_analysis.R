@@ -12,6 +12,8 @@ getSymbols(Symbols = "^GSPC", src = "yahoo", from = "2004-01-01", to = "2024-06-
 # Format datasetu
 #GSPC - GSPC.Open GSPC.High GSPC.Low GSPC.Close GSPC.Volume GSPC.Adjusted
 
+head(GSPC)
+str(GSPC)
 sp500.close <- GSPC[, "GSPC.Close"]
 sp500.close[ 1:10, ]
 
@@ -43,7 +45,7 @@ Acf(bialy.szum, main = "Funkcja ACF WN")
 Pacf(bialy.szum, main = "Funkcja PACF WN")
 
 tsdisplay(sp500.close)
-
+tsdisplay(bialy.szum)
 ##  Korekta kalendarzowa
 #srednia.liczba.dni <- 365.25 / 12
 #liczba.dni.w.miesiacu <- monthdays(sp500.close)
@@ -83,16 +85,30 @@ tsdisplay(sp500.diff)
 # Spróbujmy róznicowania wielokrotnego celem eliminacji silnego trendu:
 sp500.diff2 <- diff(sp500.close, differences = 2)
 tsdisplay(sp500.diff2) 
-# przy wielokrotnej robi się dziwnie patrząc na acf i pacf
+# przy wielokrotnej robi się dziwnie patrząc na acf i pacf - wpływ negatywny
 sp500.diff3 <- diff(sp500.close, differences = 3)
 tsdisplay(sp500.diff3)
 sp500.diff5 <- diff(sp500.close, differences = 5)
 tsdisplay(sp500.diff5)
 
- 
+# różnicowanie lag=12 (sezonowe?)
+sp500.diff48 <- diff(sp500.close, lag = 48) # trendy 4-letnie tzw. prezydenckie
+sp500.diff48.diff1 <- diff(sp500.diff48, lag = 1)
+tsdisplay(sp500.diff48.diff1)
 
+# Zamiana formatu z xts na ts bo kompiler nie chciał inaczej
+sp500_diff_ts <- ts(sp500.diff48.diff1, frequency = 1, start = c(2004,1,2))
+spts <- na.omit(as.ts(sp500_diff_ts))
+AR15 <- ar(spts, aic = FALSE, order.max = 15)
+#reszty modelu
+AR15.reszty <- AR15$resid
+head(AR15.reszty, 15)
 
+# Losowość reszt - test Ljung-Boxa
+Box.test(AR15.reszty, lag = 48, type = "Ljung-Box") # istotny
 
+plot(AR15.reszty)
+Acf(AR15.reszty)
 
 
 
