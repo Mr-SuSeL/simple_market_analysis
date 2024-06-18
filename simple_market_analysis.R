@@ -139,14 +139,29 @@ summary(model4)
 d.optymalne <- ndiffs(sp500.close) # 1
 D.optymalne <- nsdiffs(sp500.close) # niesezonowe
 
-# potem auto.arima()
+# auto.arima()
+arima.optym.aicc <- auto.arima(sp500.close, ic = "aicc")
+# ARIMA(0,1,2) with drift 
+# AIC=48399.57   AICc=48399.58   BIC=48425.75
 
-## PROGNOZOWANIE
+arima.optym.aic <- auto.arima(sp500.close, ic = "aic", stepwise = FALSE)
+# ARIMA(4,1,1) with drift
+# AIC=48337.63   AICc=48337.66   BIC=48383.44
+
+arima.optym.long <- auto.arima(sp500.close, max.p = 15, max.q = 48)
+# ARIMA(0,1,2) with drift 
+
+
+## ------------------- PROGNOZOWANIE -------------------------------------------
 # prognoza random walk z dryfem po zastosowaniu transformcji logarytmicznej Boxa-Coxa
 log.sp500.close.forecast.rwf <- rwf(x = BoxCox(sp500.close, lambda = 0), 
-                                    drift = TRUE, h = 20)
+                                   drift = TRUE, h = 20)
+# install.packages("zoom")
+#library(zoom) # Invoke the Library
+# Call plot
 plot(log.sp500.close.forecast.rwf, main = 
        "Prognoza na podstawie błądzenia losowego z dryfem logarytmiczna")
+#zm()
 
 sp500.close.forecast.rwf <- rwf(x = sp500.close, drift = TRUE, h = 20, lambda = 0)
 plot(sp500.close.forecast.rwf, main = 
