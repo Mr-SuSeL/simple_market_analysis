@@ -1,14 +1,14 @@
 library(forecast)
 # install.packages("quantmod")
 library(quantmod)
+#install.packages("expsmooth")
+# library(expsmooth)
 
 # Pobranie danych
 getSymbols(Symbols = "^GSPC", src = "yahoo", from = "2004-01-01", to = "2024-06-03")
-
 # Pobranie danych jako time series
 #getSymbols(Symbols = "^GSPC", src = "yahoo", from = "2014-01-01", to = "2024-06-03",
 #           return.class = "ts")
-
 # Format datasetu
 #GSPC - GSPC.Open GSPC.High GSPC.Low GSPC.Close GSPC.Volume GSPC.Adjusted
 
@@ -19,14 +19,6 @@ sp500.close[ 1:10, ]
 
 plot(sp500.close, main = "Wykres S&P 500 - 20 lat")
 class(sp500.close) # xts, zoo
-
-library(lattice)
-xyplot(sp500.close, aspect = 1 /3)
-#Panelowy: 
-# xyplot(sp500.close, strip = TRUE, cut = list(number = 3, overlap = 0.333))
-
-#install.packages("expsmooth")
-# library(expsmooth)
 
 ## Wykresy autokorelacji:
 lag.plot(sp500.close, lags = 12, do.lines = FALSE, main = "Wykres lag.plot dla SP500 z 20 lat")
@@ -78,6 +70,8 @@ sp500.diff <- diff(sp500.close)
 #par(mfrow = c(2, 1))
 tsdisplay(sp500.close)
 tsdisplay(sp500.diff)
+# wniosek: MA(22) i AR(30)
+
 # Spróbujmy róznicowania wielokrotnego celem eliminacji silnego trendu:
 sp500.diff2 <- diff(sp500.close, differences = 2)
 tsdisplay(sp500.diff2) 
@@ -86,11 +80,11 @@ sp500.diff3 <- diff(sp500.close, differences = 3)
 tsdisplay(sp500.diff3)
 sp500.diff5 <- diff(sp500.close, differences = 5)
 tsdisplay(sp500.diff5)
-
-# różnicowanie lag=12 (sezonowe?)
+# różnicowanie lag=12 oraz 48 (sezonowe?)
 sp500.diff48 <- diff(sp500.close, lag = 48) # trendy 4-letnie tzw. prezydenckie
 sp500.diff48.diff1 <- diff(sp500.diff48, lag = 1)
 tsdisplay(sp500.diff48.diff1)
+# MA(22) i AR(15) i/lub AR(30)
 
 # Zamiana formatu z xts na ts bo kompiler nie chciał inaczej
 sp500_diff_ts <- ts(sp500.diff48.diff1, frequency = 1, start = c(2004,1,2))
@@ -102,10 +96,10 @@ head(AR15.reszty, 25)
 
 # Losowość reszt - test Ljung-Boxa
 Box.test(AR15.reszty, lag = 48, type = "Ljung-Box") # istotny
-
 plot(AR15.reszty)
 Acf(AR15.reszty)
 
+# ARIMA
 Arima.model <- Arima(sp500.close, order = c(0, 1, 48))
 tsdiag(Arima.model, gof.lag = 48) # B. długo liczy !!!!!!!!!!!!!!!!!!
 
@@ -134,6 +128,11 @@ summary(model3)
 summary(model4)
 # AIC=48252.46   AICc=48254.1   BIC=48671.29
 
+# Metryka dokładności:
+accuracy(model1)
+accuracy(model2)
+accuracy(model3) # najlepsze wyniki
+accuracy(model4)
 
 # Różnicowanie automatyczne (testy statystyczne):
 d.optymalne <- ndiffs(sp500.close) # 1
@@ -143,14 +142,16 @@ D.optymalne <- nsdiffs(sp500.close) # niesezonowe
 arima.optym.aicc <- auto.arima(sp500.close, ic = "aicc")
 # ARIMA(0,1,2) with drift 
 # AIC=48399.57   AICc=48399.58   BIC=48425.75
+accuracy(arima.optym.aicc)
 
 arima.optym.aic <- auto.arima(sp500.close, ic = "aic", stepwise = FALSE)
 # ARIMA(4,1,1) with drift
 # AIC=48337.63   AICc=48337.66   BIC=48383.44
+accuracy(arima.optym.aic)
 
 arima.optym.long <- auto.arima(sp500.close, max.p = 15, max.q = 48)
 # ARIMA(0,1,2) with drift 
-
+accuracy(arima.optym.long) 
 
 ## ------------------- PROGNOZOWANIE -------------------------------------------
 # prognoza random walk z dryfem po zastosowaniu transformcji logarytmicznej Boxa-Coxa
@@ -166,6 +167,80 @@ plot(log.sp500.close.forecast.rwf, main =
 sp500.close.forecast.rwf <- rwf(x = sp500.close, drift = TRUE, h = 20, lambda = 0)
 plot(sp500.close.forecast.rwf, main = 
        "Prognoza na podstawie błądzenia losowego z dryfem.")
+
+# Wiemy że mamy do czynienia z danymi z dryfem
+# Zróbmy random walk forecast z dryfem dla 95% przedziału ufności
+sp500.rwf.95 <- rwf(sp500.close, drift = TRUE, h = 20, level = 0.95)
+plot(sp500.rwf.95, xlim = c(5000, 5220), ylim = c(4000, 5500)) # niesatysfakcjonujące
+# rwf dla 80% i 95% przedziałów ufności:
+sp500.rwf.8095 <- rwf(sp500.close, drift = TRUE, h = 20, level = c(0.8, 0.95))
+plot(sp500.rwf.8095, xlim = c(5000, 5220), ylim = c(4000, 5500))
+# fanplot:
+sp500.fan.rwf <- rwf(sp500.close, drift = TRUE, h = 20, fan = TRUE)
+plot(sp500.fan.rwf,xlim = c(5000, 5220), ylim = c(4000, 5700), 
+     main = "Wykres wachlarzowy dla 0.5-0.99 poz. ufności")
+
+# Analiza reszt (RWF):
+reszty.1 <- residuals(log.sp500.close.forecast.rwf)
+reszty.2 <- residuals(sp500.close.forecast.rwf)
+reszty.3 <- residuals(sp500.rwf.95)
+reszty.4 <- residuals(sp500.rwf.8095)
+reszty.5 <- residuals(sp500.fan.rwf)
+
+par(mfrow = c(3, 1))
+plot(reszty.1, main = "log.sp500.close.forecast.rwf")
+plot(reszty.2, main = "sp500.close.forecast.rwf")
+plot(reszty.3, main = "sp500.rwf.95")
+# ----------------------------------
+#plot(reszty.4, main = "sp500.rwf.8095")
+#plot(reszty.5, main = "sp500.fan.rwf")
+
+# ACF dla reszt:
+par(mfrow = c(3, 2))
+Acf(reszty.1, lag.max = 30, main = "Reszty dla log.sp500.close.forecast.rwf")
+hist(reszty.1, main = "Reszty dla log.sp500.close.forecast.rwf")
+Acf(reszty.2, lag.max = 30, main = "Reszty dla sp500.close.forecast.rwf")
+hist(reszty.2, main = "Reszty dla sp500.close.forecast.rwf")
+Acf(reszty.3, lag.max = 30, main = "Reszty dla sp500.rwf.95")
+hist(reszty.3, main = "Reszty dla sp500.rwf.95")
+
+# Test białoszumowości Boxa-Ljunga:
+Box.test(reszty.1, lag = 10, type = "Ljung-Box")
+Box.test(reszty.2, lag = 10, type = "Ljung-Box")
+Box.test(reszty.3, lag = 10, type = "Ljung-Box")
+# Test odrzucił hipotezę o losowości reszt p-value < 0.05
+
+## PROGNOZOWANIE metodyką ARIMA ------------------------------------------------
+# Z analizy ACF (MA) i PACF(AR) wyszło nam: AR(15) i MA(22), I = 1
+# modele: (15,1,0) oraz (0, 1, 22) a także (15, 1, 22)
+ARIMA.model1 <- Arima(sp500.close,
+                      order = c(15, 1, 0))
+ARIMA.model2 <- Arima(sp500.close,
+                      order = c(0, 1, 22))
+ARIMA.model3 <- Arima(sp500.close,
+                      order = c(15, 1, 22))
+
+ARIMA.model1.prognoza <- forecast(ARIMA.model1, h = 120)
+ARIMA.model2.prognoza <- forecast(ARIMA.model2, h = 120)
+ARIMA.model3.prognoza <- forecast(ARIMA.model3, h = 120)
+
+par(mfrow = c(3, 1))
+plot(ARIMA.model1.prognoza)
+plot(ARIMA.model2.prognoza)
+plot(ARIMA.model3.prognoza)
+
+# Porównanie prognoz:
+par(mfrow = c(1, 1))
+ts.plot(ARIMA.model1.prognoza$mean, 
+        ARIMA.model2.prognoza$mean,
+        ARIMA.model3.prognoza$mean,
+        main = "Porównanie prognoz dla cen zamknięcia S&P500",
+        col = c("black", "red", "green"))
+grid()
+legend("topright", 
+       legend = c("ARIMA (15, 1, 0)", "ARIMA (0, 1, 22)", "ARIMA (15, 1, 22)"),
+       col = c("black", "red", "green"), bg = "white")
+
 
 
 
