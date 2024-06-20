@@ -1,6 +1,9 @@
 library(forecast)
 # install.packages("quantmod")
 library(quantmod)
+library(stats)
+#install.packages("tseries")
+library(tseries)
 #install.packages("expsmooth")
 # library(expsmooth)
 setwd("C:/First_data_recognition/analyse_market_acf_pacf")
@@ -93,8 +96,14 @@ D.optymalne <- nsdiffs(sp500.close) # niesezonowe
 
 # AR(p)
 # Zamiana formatu z xts na ts bo kompiler nie chciał inaczej
+sp500_ts <- ts(sp500.close, frequency = 1, start = c(2004,1,2))
+# ts po różnicowaniu wrzucam do AR
 sp500_diff_ts <- ts(sp500.diff, frequency = 1, start = c(2004,1,2))
 spts <- na.omit(as.ts(sp500_diff_ts))
+
+# Augmented Dickey-Fuller Test:
+adf.test(spts) # szereg po zróżnicowaniu jest stacjonarny p < 0.05
+
 AR15 <- ar(spts, aic = FALSE, order.max = 15)
 #reszty modelu
 AR15.reszty <- AR15$resid
@@ -147,47 +156,53 @@ accuracy(model1)
 accuracy(model2)
 accuracy(model3) 
 accuracy(model4) # najlepsze wyniki
+#               ME     RMSE      MAE       MPE MAPE      MASE   ACF1
+#            0.3619275 26.26304 16.37449 -Inf  Inf 0.6774011 -0.0004927042
 
 # auto.arima()
 arima.optym.aicc <- auto.arima(sp500.close, ic = "aicc")
+arima.optym.aicc
 # ARIMA(0,1,2) with drift 
 # AIC=48399.57   AICc=48399.58   BIC=48425.75
 accuracy(arima.optym.aicc)
 
 arima.optym.aic <- auto.arima(sp500.close, ic = "aic", stepwise = FALSE)
+arima.optym.aic
 # ARIMA(4,1,1) with drift
 # AIC=48337.63   AICc=48337.66   BIC=48383.44
 accuracy(arima.optym.aic)
 
 arima.optym.long <- auto.arima(sp500.close, max.p = 15, max.q = 48)
+arima.optym.long
 # ARIMA(0,1,2) with drift 
 accuracy(arima.optym.long) 
 
 ## ------------------- PROGNOZOWANIE -------------------------------------------
 # prognoza random walk z dryfem po zastosowaniu transformcji logarytmicznej Boxa-Coxa
+
+par(mfrow = c(2, 1))
+#par(mfrow = c(1, 1))
 log.sp500.close.forecast.rwf <- rwf(x = BoxCox(sp500.close, lambda = 0), 
-                                   drift = TRUE, h = 20)
-# install.packages("zoom")
-#library(zoom) # Invoke the Library
-# Call plot
+                                   drift = TRUE, h = 2500)
 plot(log.sp500.close.forecast.rwf, main = 
        "Prognoza na podstawie błądzenia losowego z dryfem logarytmiczna")
-#zm()
+# ta prognoza powyżej wydaje się bardzo dobra
 
-sp500.close.forecast.rwf <- rwf(x = sp500.close, drift = TRUE, h = 20, lambda = 0)
+sp500.close.forecast.rwf <- rwf(x = sp500.close, drift = TRUE, h = 2500, lambda = 0)
 plot(sp500.close.forecast.rwf, main = 
        "Prognoza na podstawie błądzenia losowego z dryfem.")
 
 # Wiemy że mamy do czynienia z danymi z dryfem
 # Zróbmy random walk forecast z dryfem dla 95% przedziału ufności
-sp500.rwf.95 <- rwf(sp500.close, drift = TRUE, h = 20, level = 0.95)
-plot(sp500.rwf.95, xlim = c(5000, 5220), ylim = c(4000, 5500)) # niesatysfakcjonujące
+par(mfrow = c(3, 1))
+sp500.rwf.95 <- rwf(sp500.close, drift = TRUE, h = 2500, level = 0.95)
+plot(sp500.rwf.95, xlim = c(5000, 5220), ylim = c(4000, 6000)) # niesatysfakcjonujące
 # rwf dla 80% i 95% przedziałów ufności:
-sp500.rwf.8095 <- rwf(sp500.close, drift = TRUE, h = 20, level = c(0.8, 0.95))
-plot(sp500.rwf.8095, xlim = c(5000, 5220), ylim = c(4000, 5500))
+sp500.rwf.8095 <- rwf(sp500.close, drift = TRUE, h = 2500, level = c(0.8, 0.95))
+plot(sp500.rwf.8095, xlim = c(5000, 5220), ylim = c(4000, 6000))
 # fanplot:
-sp500.fan.rwf <- rwf(sp500.close, drift = TRUE, h = 20, fan = TRUE)
-plot(sp500.fan.rwf,xlim = c(5000, 5220), ylim = c(4000, 5700), 
+sp500.fan.rwf <- rwf(sp500.close, drift = TRUE, h = 2500, fan = TRUE)
+plot(sp500.fan.rwf,xlim = c(5000, 5220), ylim = c(4000, 6500), 
      main = "Wykres wachlarzowy dla 0.5-0.99 poz. ufności")
 
 # Analiza reszt (RWF):
@@ -221,42 +236,70 @@ Box.test(reszty.3, lag = 10, type = "Ljung-Box")
 # Test odrzucił hipotezę o losowości reszt p-value < 0.05
 
 ## PROGNOZOWANIE metodyką ARIMA ------------------------------------------------
-# Z analizy ACF (MA) i PACF(AR) wyszło nam: AR(15) i MA(22), I = 1
+# Z analizy ACF(MA) i PACF(AR) wyszło nam: AR(15) i MA(22), I = 1
 # modele: (15,1,0) oraz (0, 1, 22) a także (15, 1, 22)
 ARIMA.model1 <- Arima(sp500.close,
-                      order = c(15, 1, 0))
+                      order = c(15, 1, 0), include.drift=TRUE)
 ARIMA.model2 <- Arima(sp500.close,
-                      order = c(0, 1, 22))
+                      order = c(0, 1, 22), include.drift=TRUE)
 ARIMA.model3 <- Arima(sp500.close,
-                      order = c(15, 1, 22))
+                      order = c(15, 1, 22), include.drift=TRUE)
+ARIMA.model4 <- arima.optym.aicc 
 
-ARIMA.model1.prognoza <- forecast(ARIMA.model1, h = 120)
-ARIMA.model2.prognoza <- forecast(ARIMA.model2, h = 120)
-ARIMA.model3.prognoza <- forecast(ARIMA.model3, h = 120)
+# Prognoza na 10 x 250 dni:
+ARIMA.model1.prognoza10 <- forecast(ARIMA.model1, h = 2500)
+ARIMA.model2.prognoza10 <- forecast(ARIMA.model2, h = 2500)
+ARIMA.model3.prognoza10 <- forecast(ARIMA.model3, h = 2500)
+ARIMA.model4.prognoza10 <- forecast(ARIMA.model4, h = 2500)
 
-par(mfrow = c(3, 1))
-plot(ARIMA.model1.prognoza)
-plot(ARIMA.model2.prognoza)
-plot(ARIMA.model3.prognoza)
+par(mfrow = c(2, 2))
+plot(ARIMA.model1.prognoza10)
+plot(ARIMA.model2.prognoza10)
+plot(ARIMA.model3.prognoza10)
+plot(ARIMA.model4.prognoza10) # Prognoza auto-arimą:
 
-# Porównanie prognoz:
+# Porównanie prognoz - 10 lat:
 par(mfrow = c(1, 1))
-ts.plot(ARIMA.model1.prognoza$mean, 
-        ARIMA.model2.prognoza$mean,
-        ARIMA.model3.prognoza$mean,
+ts.plot(ARIMA.model1.prognoza10$mean, 
+        ARIMA.model2.prognoza10$mean,
+        ARIMA.model3.prognoza10$mean,
+        ARIMA.model4.prognoza10$mean,
         main = "Porównanie prognoz dla cen zamknięcia S&P500",
-        col = c("black", "red", "green"))
+        col = c("black", "red", "green", "blue"))
 grid()
-legend("topright", 
-       legend = c("ARIMA (15, 1, 0)", "ARIMA (0, 1, 22)", "ARIMA (15, 1, 22)"),
-       col = c("black", "red", "green"), bg = "white")
+legend("topleft", 
+       legend = c("ARIMA (15, 1, 0)", "ARIMA (0, 1, 22)", "ARIMA (15, 1, 22)", "auto-arima"),
+       col = c("black", "red", "green", "blue"), bg = "white")
 
 
+# Modele z wyodrębnionym trendem deterministycznym: 
+sp500_ts <- tsclean(sp500_ts)
+plot(sp500_ts)
+# decompose(x, type = c("additive", "multiplicative"), filter = NULL)
+decomp <- decompose(sp500_ts, type = "additive", filter = "MA")  
+plot(decomp) 
+# Błąd w poleceniu ... :
+# szereg czasowy nie posiada okresów lub ma ich mniej niż 2
 
+# Skoro nie działa spróbujmy funkcję tslm()
+sp500_ts_trend <- tslm(sp500_ts ~ trend)
+summary(sp500_ts_trend)
 
+sp500_ts_season <- tslm(sp500_ts ~ season)
+# Non-seasonal data cannot be modelled using a seasonal factor
 
+# Pomińmy sezonowość:
+# Model liniowy
+sp500.lin <- tslm(sp500_ts ~ trend)
+# Model kwadratowy
+sp500.kwadrat <- tslm(sp500_ts ~ I(trend^2))
+# Model logarytmiczny
+# Box-Cox z 0 -> log
+sp500.log <- tslm(sp500_ts ~ trend, lambda = 0)
 
-
+summary(sp500.lin)
+summary(sp500.kwadrat)
+summary(sp500.log)
 
 
 
