@@ -3,13 +3,12 @@ library(forecast)
 library(quantmod)
 #install.packages("expsmooth")
 # library(expsmooth)
-
+setwd("C:/First_data_recognition/analyse_market_acf_pacf")
 # Pobranie danych
 getSymbols(Symbols = "^GSPC", src = "yahoo", from = "2004-01-01", to = "2024-06-03")
 # Pobranie danych jako time series
 #getSymbols(Symbols = "^GSPC", src = "yahoo", from = "2014-01-01", to = "2024-06-03",
 #           return.class = "ts")
-# Format datasetu
 #GSPC - GSPC.Open GSPC.High GSPC.Low GSPC.Close GSPC.Volume GSPC.Adjusted
 
 head(GSPC)
@@ -70,21 +69,23 @@ sp500.diff <- diff(sp500.close)
 #par(mfrow = c(2, 1))
 tsdisplay(sp500.close)
 tsdisplay(sp500.diff)
-# wniosek: MA(22) i AR(30)
+# ------------------- wniosek: MA(22) oraz AR(30) i/lub AR(15)------------------
 
 # Spróbujmy róznicowania wielokrotnego celem eliminacji silnego trendu:
-sp500.diff2 <- diff(sp500.close, differences = 2)
-tsdisplay(sp500.diff2) 
+#sp500.diff2 <- diff(sp500.close, differences = 2)
+#tsdisplay(sp500.diff2) 
 # przy wielokrotnej robi się dziwnie patrząc na acf i pacf - wpływ negatywny
-sp500.diff3 <- diff(sp500.close, differences = 3)
-tsdisplay(sp500.diff3)
-sp500.diff5 <- diff(sp500.close, differences = 5)
-tsdisplay(sp500.diff5)
+#sp500.diff3 <- diff(sp500.close, differences = 3)
+#tsdisplay(sp500.diff3)
+#sp500.diff5 <- diff(sp500.close, differences = 5)
+#tsdisplay(sp500.diff5)
 # różnicowanie lag=12 oraz 48 (sezonowe?)
-sp500.diff48 <- diff(sp500.close, lag = 48) # trendy 4-letnie tzw. prezydenckie
-sp500.diff48.diff1 <- diff(sp500.diff48, lag = 1)
-tsdisplay(sp500.diff48.diff1)
-# MA(22) i AR(15) i/lub AR(30)
+#sp500.diff48 <- diff(sp500.close, lag = 48) # trendy 4-letnie tzw. prezydenckie
+#sp500.diff48.diff1 <- diff(sp500.diff48, lag = 1)
+#tsdisplay(sp500.diff48.diff1)
+sp500.diff.diff <- diff(sp500.diff, lag = 1)
+tsdisplay(sp500.diff.diff)
+# podwojne różnicowanie nic nie poprawiło - zostaje przy pojedynczym
 
 # Zamiana formatu z xts na ts bo kompiler nie chciał inaczej
 sp500_diff_ts <- ts(sp500.diff48.diff1, frequency = 1, start = c(2004,1,2))
