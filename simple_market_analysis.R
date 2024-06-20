@@ -74,18 +74,6 @@ tsdisplay(sp500.close)
 tsdisplay(sp500.diff)
 # ------------------- wniosek: MA(22) oraz AR(30) i/lub AR(15) -----------------
 
-# Spróbujmy róznicowania wielokrotnego celem eliminacji silnego trendu:
-#sp500.diff2 <- diff(sp500.close, differences = 2)
-#tsdisplay(sp500.diff2) 
-# przy wielokrotnej robi się dziwnie patrząc na acf i pacf - wpływ negatywny
-#sp500.diff3 <- diff(sp500.close, differences = 3)
-#tsdisplay(sp500.diff3)
-#sp500.diff5 <- diff(sp500.close, differences = 5)
-#tsdisplay(sp500.diff5)
-# różnicowanie lag=12 oraz 48 (sezonowe?)
-#sp500.diff48 <- diff(sp500.close, lag = 48) # trendy 4-letnie tzw. prezydenckie
-#sp500.diff48.diff1 <- diff(sp500.diff48, lag = 1)
-#tsdisplay(sp500.diff48.diff1)
 sp500.diff.diff <- diff(sp500.diff, lag = 1)
 tsdisplay(sp500.diff.diff)
 # podwojne różnicowanie nic nie poprawiło - zostaje przy pojedynczym
