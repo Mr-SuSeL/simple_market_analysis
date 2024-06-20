@@ -41,7 +41,7 @@ tsdisplay(bialy.szum)
 ## Box-Cox & differencing
 # Transformacje boxa-Coxa zastosujemy celem ustabilizowania wariancji szeregu
 # Różnicowanie będzie miało na celu usunięcie trendu z danych
-sp500.sqrt <- BoxCox(sp500.close, lambda = 0.5)
+sp500.sqrt <- BoxCox(sp500.close, lambda = 0.5) # potęgowy
 sp500.log <- BoxCox(sp500.close, lambda = 0) #ln - z definicji
 autolambda <- BoxCox.lambda(sp500.close) # 0.317 - auto lambda
 sp500.autolambda <- BoxCox(sp500.close, lambda = autolambda)
@@ -69,7 +69,7 @@ sp500.diff <- diff(sp500.close)
 #par(mfrow = c(2, 1))
 tsdisplay(sp500.close)
 tsdisplay(sp500.diff)
-# ------------------- wniosek: MA(22) oraz AR(30) i/lub AR(15)------------------
+# ------------------- wniosek: MA(22) oraz AR(30) i/lub AR(15) -----------------
 
 # Spróbujmy róznicowania wielokrotnego celem eliminacji silnego trendu:
 #sp500.diff2 <- diff(sp500.close, differences = 2)
@@ -87,8 +87,13 @@ sp500.diff.diff <- diff(sp500.diff, lag = 1)
 tsdisplay(sp500.diff.diff)
 # podwojne różnicowanie nic nie poprawiło - zostaje przy pojedynczym
 
+# Różnicowanie automatyczne (testy statystyczne):
+d.optymalne <- ndiffs(sp500.close) # 1
+D.optymalne <- nsdiffs(sp500.close) # niesezonowe
+
+# AR(p)
 # Zamiana formatu z xts na ts bo kompiler nie chciał inaczej
-sp500_diff_ts <- ts(sp500.diff48.diff1, frequency = 1, start = c(2004,1,2))
+sp500_diff_ts <- ts(sp500.diff, frequency = 1, start = c(2004,1,2))
 spts <- na.omit(as.ts(sp500_diff_ts))
 AR15 <- ar(spts, aic = FALSE, order.max = 15)
 #reszty modelu
@@ -96,19 +101,25 @@ AR15.reszty <- AR15$resid
 head(AR15.reszty, 25)
 
 # Losowość reszt - test Ljung-Boxa
-Box.test(AR15.reszty, lag = 48, type = "Ljung-Box") # istotny
+Box.test(AR15.reszty, lag = 15, type = "Ljung-Box") # istotny
 plot(AR15.reszty)
 Acf(AR15.reszty)
 
-# ARIMA
-Arima.model <- Arima(sp500.close, order = c(0, 1, 48))
-tsdiag(Arima.model, gof.lag = 48) # B. długo liczy !!!!!!!!!!!!!!!!!!
+# MA(q)
+MA22 <- ma(spts, order = 22)
+
+plot(spts)
+lines(MA22,col="red")
+
+# ARIMA(p, d, q)
+Arima.model <- Arima(sp500.close, order = c(0, 1, 22))
+tsdiag(Arima.model, gof.lag = 22) # czasem długo liczy 
 
 Arima.reszty <- residuals(Arima.model)
 Box.test(Arima.reszty, type = "Ljung-Box", lag = 1)
-Box.test(Arima.reszty, type = "Ljung-Box", lag = 12)
+Box.test(Arima.reszty, type = "Ljung-Box", lag = 22)
 Box.test(Arima.reszty, type = "Ljung-Box", lag = 48)
-# Reszty są losowe 
+# Reszty są losowe bo p-value > 0,05
 
 # Analiza normalności reszt:
 hist(Arima.reszty, main = "histogram")
@@ -116,28 +127,26 @@ qqnorm(Arima.reszty, main = "wykres kwantylowy")
 qqline(Arima.reszty)
 
 # Zbudujmy model nr 2 i sprawdźmy dobroć
-model2 <- Arima(sp500.close, order = c(48, 1, 0))
-model1 <- Arima.model # (0, 1, 48)
+model1 <- Arima.model # (0, 1, 22)
+model2 <- Arima(sp500.close, order = c(22, 1, 0))
 model3 <- Arima(sp500.close, order = c(15, 1, 0))
-model4 <- Arima(sp500.close, order = c(15, 1, 48)) # najlepszy AICc
+# Podmiana danych z xts na ts bo inaczej nie ruszał model4
+#model4 <- Arima(sp500.close, order = c(15, 1, 22)) # najlepszy AICc
+model4 <- Arima(spts, order = c(15, 1, 22)) # najlepszy AICc
 summary(model1)
 # AIC=48279.85   AICc=48280.81   BIC=48600.51
 summary(model2)
-# AIC=48273.29   AICc=48274.25   BIC=48593.96
+# AIC=48281.6   AICc=48281.82   BIC=48432.12
 summary(model3)
 # AIC=48282.28   AICc=48282.38   BIC=48386.99
 summary(model4)
-# AIC=48252.46   AICc=48254.1   BIC=48671.29
+# AIC=48236.33   AICc=48236.91   BIC=48485
 
 # Metryka dokładności:
 accuracy(model1)
 accuracy(model2)
-accuracy(model3) # najlepsze wyniki
-accuracy(model4)
-
-# Różnicowanie automatyczne (testy statystyczne):
-d.optymalne <- ndiffs(sp500.close) # 1
-D.optymalne <- nsdiffs(sp500.close) # niesezonowe
+accuracy(model3) 
+accuracy(model4) # najlepsze wyniki
 
 # auto.arima()
 arima.optym.aicc <- auto.arima(sp500.close, ic = "aicc")
